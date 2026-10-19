@@ -5,6 +5,7 @@ import (
     "log"
     "net/http"
     "os"
+    "strings"
     "time"
 
     "github.com/jackc/pgx/v5/pgxpool"
@@ -13,15 +14,60 @@ import (
     "moviehub/handler"
     "moviehub/mw"
     "moviehub/store"
-    "strings"
 )
 
+func loadEnv(path string) error {
+    data, err := os.ReadFile(path)
+    if err != nil {
+        if os.IsNotExist(err) {
+            return nil
+        }
+        return err
+    }
+
+    for _, rawLine := range strings.Split(string(data), "\n") {
+        line := strings.TrimSpace(rawLine)
+        if line == "" || strings.HasPrefix(line, "#") {
+            continue
+        }
+
+        parts := strings.SplitN(line, "=", 2)
+        if len(parts) != 2 {
+            continue
+        }
+
+        key := strings.TrimSpace(parts[0])
+        value := strings.TrimSpace(parts[1])
+        value = strings.Trim(value, `"'`)
+        if key == "" {
+            continue
+        }
+        if _, exists := os.LookupEnv(key); !exists {
+            if err := os.Setenv(key, value); err != nil {
+                return err
+            }
+        }
+    }
+
+    return nil
+}
+
 func main() {
-    secret := os.Getenv("JWT_SECRET")
+    if err := loadEnv(".env"); err != nil {
+        log.Fatal("ไม่สามารถอ่านไฟล์ .env ได้: ", err)
+    }
+
+    secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
     if len(secret) < 32 {
         log.Fatal("JWT_SECRET ต้องยาวอย่างน้อย 32 ตัวอักษร")
     }
-    pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+
+    databaseURL := strings.TrimSpace(os.Getenv("DATABASE_URL"))
+    if databaseURL == "" {
+        log.Fatal("DATABASE_URL ยังไม่ได้ตั้งค่า")
+    }
+
+    pool, err := pgxpool.New(context.Background(), databaseURL)
     if err != nil {
         log.Fatal(err)
     }
