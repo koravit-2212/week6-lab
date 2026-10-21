@@ -83,10 +83,14 @@ func main() {
     mux.HandleFunc("POST /api/auth/register", h.Register)
     mux.HandleFunc("POST /api/auth/login", h.Login)
     mux.HandleFunc("GET /api/movies", h.SearchMovies)
-     mux.HandleFunc("GET /api/movies/{id}", h.GetMovie)
+    mux.HandleFunc("GET /api/movies/{id}", h.GetMovie)
     mux.HandleFunc("GET /api/movies/{id}/reviews", h.ListReviews)
 
-     origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+    origins := strings.Split(os.Getenv("ALLOWED_ORIGINS"), ",")
+    if len(strings.TrimSpace(os.Getenv("ALLOWED_ORIGINS"))) == 0 {
+        origins = []string{"http://localhost:3000", "https://moviehub-670710197.vercel.app"}
+    }
+
     log.Println("MovieHub API ฟังอยู่ที่ :8080 ต้อนรับ", origins)
     log.Fatal(http.ListenAndServe(":8080", mw.Logging(mw.CORS(origins, mux))))
 }
